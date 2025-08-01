@@ -17,13 +17,13 @@ import {
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Guards', href: '/guards', icon: Users },
-  { name: 'Clients', href: '/clients', icon: Building2 },
-  { name: 'Duty Assignment', href: '/duty-assignment', icon: ClipboardList },
-  { name: 'Salary Management', href: '/salary', icon: DollarSign },
-  { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'Client-Guard Assignment', href: '/client-guard', icon: UserCheck },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Guards', href: '/dashboard/guards', icon: Users },
+  { name: 'Clients', href: '/dashboard/clients', icon: Building2 },
+  { name: 'Duty Assignment', href: '/dashboard/duty-assignment', icon: ClipboardList },
+  { name: 'Salary Management', href: '/dashboard/salary', icon: DollarSign },
+  { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+  { name: 'Client-Guard Assignment', href: '/dashboard/client-guard', icon: UserCheck },
 ];
 
 export default function MainLayout() {
@@ -51,7 +51,7 @@ export default function MainLayout() {
             <div className="flex items-center justify-center w-8 h-8 bg-gradient-primary rounded-lg">
               <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-lg font-semibold text-foreground">SecureGuard</h1>
+            <h1 className="text-lg font-semibold text-foreground">Pak Public Security</h1>
             <Button
               variant="ghost"
               size="sm"

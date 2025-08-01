@@ -16,11 +16,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 15%;
 
-    /* Primary - Security blue */
-    --primary: 215 84% 45%;
+    /* Primary - Security black */
+    --primary: 0 0% 9%;
     --primary-foreground: 0 0% 98%;
-    --primary-light: 215 84% 55%;
-    --primary-dark: 215 84% 35%;
+    --primary-light: 0 0% 20%;
+    --primary-dark: 0 0% 5%;
 
     /* Secondary - Professional gray */
     --secondary: 215 16% 96%;
@@ -42,7 +42,7 @@
 
     --border: 215 20% 88%;
     --input: 215 20% 88%;
-    --ring: 215 84% 45%;
+    --ring: 0 0% 9%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
@@ -78,11 +78,11 @@
     --popover: 215 28% 17%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary - Dark mode blue */
-    --primary: 215 84% 55%;
-    --primary-foreground: 215 28% 17%;
-    --primary-light: 215 84% 65%;
-    --primary-dark: 215 84% 45%;
+    /* Primary - Dark mode black */
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 98%;
+    --primary-light: 0 0% 30%;
+    --primary-dark: 0 0% 10%;
 
     --secondary: 215 20% 20%;
     --secondary-foreground: 0 0% 98%;
@@ -103,7 +103,7 @@
 
     --border: 215 20% 25%;
     --input: 215 20% 25%;
-    --ring: 215 84% 55%;
+    --ring: 0 0% 20%;
 
     /* Gradients - dark mode */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
