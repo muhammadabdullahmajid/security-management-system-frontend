@@ -231,7 +231,7 @@ export default function Clients() {
               </div>
 
               <div>
-                <Label htmlFor="contract_rate">Contract Rate (₹/month)</Label>
+                <Label htmlFor="contract_rate">Contract Rate (Rs/month)</Label>
                 <Input
                   id="contract_rate"
                   type="number"
@@ -274,7 +274,7 @@ export default function Clients() {
               <DollarSign className="h-8 w-8 text-success" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-success">₹{totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-success">Rs{totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -299,7 +299,7 @@ export default function Clients() {
               <div>
                 <p className="text-sm text-muted-foreground">Avg. Contract</p>
                 <p className="text-2xl font-bold text-warning">
-                  ₹{clients.length > 0 ? Math.round(totalRevenue / clients.length).toLocaleString() : '0'}
+                  Rs{clients.length > 0 ? Math.round(totalRevenue / clients.length).toLocaleString() : '0'}
                 </p>
               </div>
             </div>
@@ -364,7 +364,7 @@ export default function Clients() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-success" />
-                        <span className="font-medium text-success">₹{client.contract_rate.toLocaleString()}</span>
+                        <span className="font-medium text-success">Rs{client.contract_rate.toLocaleString()}</span>
                       </div>
                     </TableCell>
                     <TableCell>

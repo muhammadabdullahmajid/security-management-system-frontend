@@ -230,7 +230,7 @@ export default function Guards() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="salary">Current Salary (₹)</Label>
+                  <Label htmlFor="salary">Current Salary (Rs)</Label>
                   <Input
                     id="salary"
                     type="number"
@@ -241,7 +241,7 @@ export default function Guards() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="uniform">Uniform Cost (₹)</Label>
+                  <Label htmlFor="uniform">Uniform Cost (Rs)</Label>
                   <Input
                     id="uniform"
                     type="number"
@@ -252,7 +252,7 @@ export default function Guards() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="deduction">Monthly Deduction (₹)</Label>
+                  <Label htmlFor="deduction">Monthly Deduction (Rs)</Label>
                   <Input
                     id="deduction"
                     type="number"
@@ -342,7 +342,7 @@ export default function Guards() {
               <div>
                 <p className="text-sm text-muted-foreground">Avg. Salary</p>
                 <p className="text-2xl font-bold text-success">
-                  ₹{Math.round(guards.reduce((sum, g) => sum + g.current_salary, 0) / guards.length).toLocaleString()}
+                  Rs{Math.round(guards.reduce((sum, g) => sum + g.current_salary, 0) / guards.length).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -403,7 +403,7 @@ export default function Guards() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        ₹{guard.current_salary.toLocaleString()}
+                        Rs{guard.current_salary.toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>

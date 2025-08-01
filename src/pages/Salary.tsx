@@ -254,7 +254,7 @@ export default function Salary() {
                     <SelectContent>
                       {mockGuards.map((guard) => (
                         <SelectItem key={guard.contact} value={guard.contact}>
-                          {guard.name} ({guard.contact}) - ₹{guard.salary.toLocaleString()}
+                          {guard.name} ({guard.contact}) - Rs{guard.salary.toLocaleString()}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -265,7 +265,7 @@ export default function Salary() {
                   <Label>Base Salary</Label>
                   <div className="mt-1 p-2 bg-muted rounded-md">
                     <span className="text-sm text-muted-foreground">
-                      ₹{(mockGuards.find(g => g.contact === formData.guard_contact)?.salary || 0).toLocaleString()}
+                      Rs{(mockGuards.find(g => g.contact === formData.guard_contact)?.salary || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -307,7 +307,7 @@ export default function Salary() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="deductions">Deductions (₹)</Label>
+                  <Label htmlFor="deductions">Deductions (Rs)</Label>
                   <Input
                     id="deductions"
                     type="number"
@@ -319,7 +319,7 @@ export default function Salary() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="bonus">Bonus (₹)</Label>
+                  <Label htmlFor="bonus">Bonus (Rs)</Label>
                   <Input
                     id="bonus"
                     type="number"
@@ -335,7 +335,7 @@ export default function Salary() {
                 <Label>Final Salary</Label>
                 <div className="mt-1 p-3 bg-primary/10 rounded-md border border-primary/20">
                   <span className="text-lg font-semibold text-primary">
-                    ₹{calculateFinalSalary(
+                    Rs{calculateFinalSalary(
                       mockGuards.find(g => g.contact === formData.guard_contact)?.salary || 0,
                       parseFloat(formData.deductions) || 0,
                       parseFloat(formData.bonus) || 0
@@ -422,7 +422,7 @@ export default function Salary() {
               <DollarSign className="h-8 w-8 text-success" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid</p>
-                <p className="text-2xl font-bold text-success">₹{totalPaid.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-success">Rs{totalPaid.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -434,7 +434,7 @@ export default function Salary() {
               <TrendingUp className="h-8 w-8 text-warning" />
               <div>
                 <p className="text-sm text-muted-foreground">Pending Amount</p>
-                <p className="text-2xl font-bold text-warning">₹{totalPending.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-warning">Rs{totalPending.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -503,12 +503,12 @@ export default function Salary() {
                         {months[record.month - 1]} {record.year}
                       </div>
                     </TableCell>
-                    <TableCell>₹{record.base_salary.toLocaleString()}</TableCell>
+                    <TableCell>Rs{record.base_salary.toLocaleString()}</TableCell>
                     <TableCell>
                       {record.deductions > 0 && (
                         <div className="flex items-center gap-1 text-destructive">
                           <Minus className="h-3 w-3" />
-                          ₹{record.deductions.toLocaleString()}
+                          Rs{record.deductions.toLocaleString()}
                         </div>
                       )}
                     </TableCell>
@@ -516,12 +516,12 @@ export default function Salary() {
                       {record.bonus > 0 && (
                         <div className="flex items-center gap-1 text-success">
                           <Plus className="h-3 w-3" />
-                          ₹{record.bonus.toLocaleString()}
+                          Rs{record.bonus.toLocaleString()}
                         </div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="font-semibold text-primary">₹{record.final_salary.toLocaleString()}</span>
+                      <span className="font-semibold text-primary">Rs{record.final_salary.toLocaleString()}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

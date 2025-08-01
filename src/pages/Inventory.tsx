@@ -352,7 +352,7 @@ export default function Inventory() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="cost">Cost (₹)</Label>
+                  <Label htmlFor="cost">Cost (Rs)</Label>
                   <Input
                     id="cost"
                     type="number"
@@ -507,7 +507,7 @@ export default function Inventory() {
               <DollarSign className="h-8 w-8 text-warning" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold text-warning">₹{totalCost.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-warning">Rs{totalCost.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -588,7 +588,7 @@ export default function Inventory() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              ₹{record.cost.toLocaleString()}
+                              Rs{record.cost.toLocaleString()}
                             </div>
                           </TableCell>
                           <TableCell>
