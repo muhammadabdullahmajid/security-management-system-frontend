@@ -3,6 +3,7 @@ import { Outlet, useLocation, Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import logo from '@/assets/Logo.png';
 import {
   LayoutDashboard,
   Users,
@@ -48,10 +49,10 @@ export default function MainLayout() {
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex h-16 items-center gap-3 px-6 border-b border-border">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-primary rounded-lg">
-              <Shield className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <h1 className="text-lg font-semibold text-foreground">Pak Public Security</h1>
+           <div className="flex items-center space-x-3">
+            <img src={logo} alt="Logo" className="h-10 w-auto" />
+            <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
+           </div>
             <Button
               variant="ghost"
               size="sm"

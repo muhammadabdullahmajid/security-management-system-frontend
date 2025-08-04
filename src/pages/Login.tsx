@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logo from '@/assets/Logo.png'
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,25 +18,44 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate login - replace with actual authentication
-    setTimeout(() => {
-      if (email && password) {
-        localStorage.setItem('isAuthenticated', 'true');
-        toast({
-          title: "Login successful",
-          description: "Welcome to Pak Public Security Management",
-        });
-        navigate('/dashboard');
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Please enter valid credentials",
-          variant: "destructive",
-        });
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,        // If backend expects 'username', change this key
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Login failed');
       }
+
+      // Store token securely
+      sessionStorage.setItem('token', data.access_token);
+      localStorage.setItem('isAuthenticated', 'true');
+
+      toast({
+        title: 'Login successful',
+        description: 'Welcome to Pak Public Security Management',
+      });
+
+      navigate('/dashboard'); // or '/mainlayout'
+    } catch (error: any) {
+      toast({
+        title: 'Login failed',
+        description: error.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -43,10 +63,8 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-10 h-10 bg-gradient-primary rounded-lg">
-            <Shield className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Pak Public Security</h1>
+        <img src={logo} alt="Logo" className="h-10 w-auto" />
+        <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
         </div>
 
         <Card className="border-border">
@@ -84,7 +102,7 @@ export default function Login() {
                 {loading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
-            
+
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{' '}

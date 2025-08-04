@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Users, Building2, ClipboardList } from 'lucide-react';
@@ -10,10 +11,10 @@ export default function Home() {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 bg-gradient-primary rounded-lg">
-              <Shield className="h-6 w-6 text-primary-foreground" />
+            <div className="flex items-center space-x-3">
+              <img src={logo} alt="Logo" className="h-10 w-auto" />
+              <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
             </div>
-            <h1 className="text-xl font-bold text-foreground">Pak Public Security Management</h1>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login">
@@ -30,7 +31,7 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
-            Professional Security
+            Pak Public Security
             <span className="text-primary block">Management System</span>
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import logo from '@/assets/Logo.png'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +10,18 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,36 +29,55 @@ export default function Signup() {
 
     if (formData.password !== formData.confirmPassword) {
       toast({
-        title: "Password mismatch",
-        description: "Passwords do not match",
-        variant: "destructive",
+        title: 'Password mismatch',
+        description: 'Passwords do not match',
+        variant: 'destructive',
       });
       setLoading(false);
       return;
     }
-    
-    // Simulate signup - replace with actual authentication
-    setTimeout(() => {
-      if (formData.name && formData.email && formData.password) {
-        localStorage.setItem('isAuthenticated', 'true');
-        toast({
-          title: "Account created successfully",
-          description: "Welcome to Pak Public Security Management",
-        });
-        navigate('/dashboard');
-      } else {
-        toast({
-          title: "Signup failed",
-          description: "Please fill in all fields",
-          variant: "destructive",
-        });
-      }
-      setLoading(false);
-    }, 1000);
-  };
 
-  const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    try {
+      const response = await fetch('http://127.0.0.1:8000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username, // Matches your backend's model
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.detail || 'Signup failed');
+      }
+
+      toast({
+        title: 'Account created successfully',
+        description: `Welcome, ${data.username || 'user'}!`,
+      });
+
+      navigate('/login');
+    } catch (error: any) {
+      const message =
+        typeof error === 'string'
+          ? error
+          : error instanceof Error
+          ? error.message
+          : 'Unknown error occurred';
+
+      toast({
+        title: 'Signup error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,29 +85,25 @@ export default function Signup() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-10 h-10 bg-gradient-primary rounded-lg">
-            <Shield className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Pak Public Security</h1>
+        <img src={logo} alt="Logo" className="h-10 w-auto" />
+        <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
         </div>
 
         <Card className="border-border">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create Account</CardTitle>
-            <CardDescription>
-              Join our security management platform
-            </CardDescription>
+            <CardDescription>Join our security management platform</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="name"
+                  id="username"
                   type="text"
-                  placeholder="Enter your full name"
-                  value={formData.name}
-                  onChange={handleChange('name')}
+                  placeholder="Choose a username"
+                  value={formData.username}
+                  onChange={handleChange('username')}
                   required
                 />
               </div>
@@ -124,7 +144,7 @@ export default function Signup() {
                 {loading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
-            
+
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
