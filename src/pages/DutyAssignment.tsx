@@ -1,502 +1,322 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import React, { useEffect, useState } from "react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Plus,
-  Search,
-  Edit,
-  Calendar,
-  Clock,
-  User,
-  Building2,
-  Sun,
-  Moon,
-  CheckCircle2,
-  XCircle,
-  AlertCircle
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
 
-// Mock data
-const mockAssignments = [
-  {
-    id: 1,
-    guard_name: 'John Doe',
-    guard_contact: '+1234567890',
-    client_name: 'Alpha Corporation',
-    client_contact: '+1234567800',
-    company_name: 'Alpha Corp Ltd.',
-    start_date: '2024-03-01T08:00:00Z',
-    end_date: null,
-    duty_status: 'ON_DUTY',
-    shift_type: 'day',
-    is_active: true,
-    duration_days: 30
-  },
-  {
-    id: 2,
-    guard_name: 'Sarah Smith',
-    guard_contact: '+1234567891',
-    client_name: 'Beta Solutions',
-    client_contact: '+1234567801',
-    company_name: 'Beta Solutions Inc.',
-    start_date: '2024-02-15T20:00:00Z',
-    end_date: null,
-    duty_status: 'ON_DUTY',
-    shift_type: 'night',
-    is_active: true,
-    duration_days: 45
-  },
-  {
-    id: 3,
-    guard_name: 'Mike Johnson',
-    guard_contact: '+1234567892',
-    client_name: 'Gamma Industries',
-    client_contact: '+1234567802',
-    company_name: 'Gamma Industries Pvt Ltd.',
-    start_date: '2024-01-10T08:00:00Z',
-    end_date: '2024-02-28T18:00:00Z',
-    duty_status: 'COMPLETED',
-    shift_type: 'day',
-    is_active: false,
-    duration_days: 49
-  }
-];
+export default function DutyAssignmentPage() {
+  const API_BASE_URL = "http://localhost:8000/dutyassignment";
+  const CACHE_KEY = "duty_assignments_cache";
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in ms
 
-const mockGuards = [
-  { name: 'John Doe', contact: '+1234567890' },
-  { name: 'Sarah Smith', contact: '+1234567891' },
-  { name: 'Mike Johnson', contact: '+1234567892' },
-  { name: 'Emily Davis', contact: '+1234567893' }
-];
+  const defaultFormData = {
+    guard_contact_number: "",
+    client_contact_number: "",
+    company_name: "",
+    start_date: "",
+    end_date: "",
+    duty_status: "ON_DUTY",
+    shift_type: "day",
+  };
 
-const mockClients = [
-  { name: 'Alpha Corporation', contact: '+1234567800', company: 'Alpha Corp Ltd.' },
-  { name: 'Beta Solutions', contact: '+1234567801', company: 'Beta Solutions Inc.' },
-  { name: 'Gamma Industries', contact: '+1234567802', company: 'Gamma Industries Pvt Ltd.' }
-];
+  const [assignments, setAssignments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editAssignment, setEditAssignment] = useState(null);
+  const [formData, setFormData] = useState(defaultFormData);
+  const [loading, setLoading] = useState(false);
 
-const statusColors = {
-  ON_DUTY: 'bg-success text-success-foreground',
-  OFF_DUTY: 'bg-warning text-warning-foreground',
-  COMPLETED: 'bg-muted text-muted-foreground'
-};
+  const fetchAssignments = async (forceRefresh = false) => {
+    setLoading(true);
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached && !forceRefresh) {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
 
-const statusIcons = {
-  ON_DUTY: CheckCircle2,
-  OFF_DUTY: AlertCircle,
-  COMPLETED: XCircle
-};
+        // Always show cached data instantly
+        setAssignments(data);
+        setLoading(false);
 
-export default function DutyAssignment() {
-  const [assignments, setAssignments] = useState(mockAssignments);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState(null);
+        if (age < CACHE_DURATION && !searchTerm) {
+          // Cache is fresh → skip API call
+          return;
+        }
+        // Cache is stale → refresh in background
+      }
 
-  const [formData, setFormData] = useState({
-    guard_contact: '',
-    client_contact: '',
-    company_name: '',
-    start_date: '',
-    end_date: '',
-    duty_status: 'ON_DUTY',
-    shift_type: 'day'
-  });
+      const url = searchTerm
+        ? `${API_BASE_URL}?search=${encodeURIComponent(searchTerm)}`
+        : API_BASE_URL;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch assignments");
 
-  const filteredAssignments = assignments.filter(assignment => {
-    const matchesSearch = assignment.guard_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assignment.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assignment.company_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || assignment.duty_status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+      const data = await res.json();
+      setAssignments(data);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const selectedGuard = mockGuards.find(g => g.contact === formData.guard_contact);
-    const selectedClient = mockClients.find(c => c.contact === formData.client_contact);
-    
-    if (editingAssignment) {
-      setAssignments(assignments.map(assignment => 
-        assignment.id === editingAssignment.id 
-          ? { 
-              ...assignment, 
-              ...formData,
-              guard_name: selectedGuard?.name,
-              client_name: selectedClient?.name,
-              company_name: selectedClient?.company,
-              is_active: formData.duty_status !== 'COMPLETED'
-            }
-          : assignment
-      ));
-    } else {
-      setAssignments([...assignments, {
-        ...formData,
-        id: Date.now(),
-        guard_name: selectedGuard?.name,
-        client_name: selectedClient?.name,
-        company_name: selectedClient?.company,
-        is_active: formData.duty_status !== 'COMPLETED',
-        duration_days: formData.end_date ? 
-          Math.ceil((new Date(formData.end_date).getTime() - new Date(formData.start_date).getTime()) / (1000 * 60 * 60 * 24)) : 0
-      }]);
+      // Save to localStorage only when no search term
+      if (!searchTerm) {
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ data, timestamp: Date.now() })
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+    } finally {
+      setLoading(false);
     }
-    resetForm();
   };
 
-  const resetForm = () => {
-    setFormData({
-      guard_contact: '',
-      client_contact: '',
-      company_name: '',
-      start_date: '',
-      end_date: '',
-      duty_status: 'ON_DUTY',
-      shift_type: 'day'
-    });
-    setEditingAssignment(null);
-    setIsDialogOpen(false);
-  };
+  useEffect(() => {
+    fetchAssignments();
+
+    // Auto-refresh every 5 minutes in background
+    const interval = setInterval(() => fetchAssignments(true), CACHE_DURATION);
+    return () => clearInterval(interval);
+  }, [searchTerm]);
 
   const handleEdit = (assignment) => {
-    setEditingAssignment(assignment);
+    setEditAssignment(assignment);
     setFormData({
-      guard_contact: assignment.guard_contact,
-      client_contact: assignment.client_contact,
-      company_name: assignment.company_name,
-      start_date: assignment.start_date.split('T')[0],
-      end_date: assignment.end_date ? assignment.end_date.split('T')[0] : '',
-      duty_status: assignment.duty_status,
-      shift_type: assignment.shift_type
+      guard_contact_number: assignment.guard_contact_number,
+      client_contact_number: assignment.client_contact_number,
+      company_name: assignment.company_name || "",
+      start_date: assignment.start_date?.split("T")[0] || "",
+      end_date: assignment.end_date?.split("T")[0] || "",
+      duty_status: assignment.duty_status || "ON_DUTY",
+      shift_type: assignment.shift_type || "day",
     });
-    setIsDialogOpen(true);
+    setOpen(true);
   };
 
-  const onDutyCount = assignments.filter(a => a.duty_status === 'ON_DUTY').length;
-  const offDutyCount = assignments.filter(a => a.duty_status === 'OFF_DUTY').length;
-  const completedCount = assignments.filter(a => a.duty_status === 'COMPLETED').length;
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete assignment");
+      fetchAssignments(true); // force refresh
+    } catch (error) {
+      console.error("Error deleting assignment:", error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const method = editAssignment ? "PUT" : "POST";
+      const url = editAssignment
+        ? `${API_BASE_URL}/${editAssignment.id}`
+        : API_BASE_URL;
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error("Failed to save assignment");
+
+      setOpen(false);
+      setEditAssignment(null);
+      setFormData(defaultFormData);
+      fetchAssignments(true); // force refresh after update
+    } catch (error) {
+      console.error("Error saving assignment:", error);
+    }
+  };
+
+  const statusColors = {
+    ON_DUTY: "bg-green-500",
+    OFF_DUTY: "bg-gray-500",
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Duty Assignment</h1>
-          <p className="text-muted-foreground">Assign guards to clients and manage duty schedules</p>
-        </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary shadow-medium">
-              <Plus className="h-4 w-4 mr-2" />
-              New Assignment
+    <div className="p-6">
+      {/* Search & Add */}
+      <div className="flex justify-between items-center mb-6">
+        <Input
+          placeholder="Search by guard/client contact..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full max-w-md"
+        />
+        <Button
+          onClick={() => {
+            setEditAssignment(null);
+            setFormData(defaultFormData);
+            setOpen(true);
+          }}
+          className="ml-4"
+        >
+          <Plus className="h-4 w-4 mr-2" /> New Assignment
+        </Button>
+      </div>
+
+      {/* Table */}
+      {loading && assignments.length === 0 ? (
+        <p>Loading assignments...</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Guard Contact</TableHead>
+              <TableHead>Client Contact</TableHead>
+              <TableHead>Company Name</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>End Date</TableHead>
+              <TableHead>Shift</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {assignments.map((assignment) => (
+              <TableRow key={assignment.id}>
+                <TableCell>{assignment.guard_contact_number}</TableCell>
+                <TableCell>{assignment.client_contact_number}</TableCell>
+                <TableCell>{assignment.company_name || "-"}</TableCell>
+                <TableCell>
+                  {assignment.start_date
+                    ? format(new Date(assignment.start_date), "yyyy-MM-dd")
+                    : "-"}
+                </TableCell>
+                <TableCell>
+                  {assignment.end_date
+                    ? format(new Date(assignment.end_date), "yyyy-MM-dd")
+                    : "Ongoing"}
+                </TableCell>
+                <TableCell className="capitalize">
+                  {assignment.shift_type}
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${statusColors[assignment.duty_status]} text-white`}>
+                    {assignment.duty_status.replace("_", " ")}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(assignment)}
+                  >
+                    <Edit className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(assignment.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editAssignment ? "Edit Assignment" : "New Assignment"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Guard Contact Number</Label>
+              <Input
+                required
+                value={formData.guard_contact_number}
+                onChange={(e) =>
+                  setFormData({ ...formData, guard_contact_number: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Client Contact Number</Label>
+              <Input
+                required
+                value={formData.client_contact_number}
+                onChange={(e) =>
+                  setFormData({ ...formData, client_contact_number: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Company Name</Label>
+              <Input
+                value={formData.company_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, company_name: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Start Date</Label>
+              <Input
+                type="date"
+                required
+                value={formData.start_date}
+                onChange={(e) =>
+                  setFormData({ ...formData, start_date: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>End Date</Label>
+              <Input
+                type="date"
+                value={formData.end_date}
+                onChange={(e) =>
+                  setFormData({ ...formData, end_date: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <select
+                className="border rounded px-2 py-1 w-full"
+                value={formData.duty_status}
+                onChange={(e) =>
+                  setFormData({ ...formData, duty_status: e.target.value })
+                }
+              >
+                <option value="ON_DUTY">On Duty</option>
+                <option value="OFF_DUTY">Off Duty</option>
+              </select>
+            </div>
+            <div>
+              <Label>Shift Type</Label>
+              <select
+                className="border rounded px-2 py-1 w-full"
+                value={formData.shift_type}
+                onChange={(e) =>
+                  setFormData({ ...formData, shift_type: e.target.value })
+                }
+              >
+                <option value="day">Day</option>
+                <option value="night">Night</option>
+              </select>
+            </div>
+            <Button type="submit" className="w-full">
+              {editAssignment ? "Update Assignment" : "Create Assignment"}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}</DialogTitle>
-              <DialogDescription>
-                {editingAssignment ? 'Update duty assignment details' : 'Assign a guard to a client for security duty'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="guard">Select Guard *</Label>
-                  <Select value={formData.guard_contact} onValueChange={(value) => setFormData({...formData, guard_contact: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Choose a guard" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockGuards.map((guard) => (
-                        <SelectItem key={guard.contact} value={guard.contact}>
-                          {guard.name} ({guard.contact})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="client">Select Client *</Label>
-                  <Select value={formData.client_contact} onValueChange={(value) => {
-                    const client = mockClients.find(c => c.contact === value);
-                    setFormData({...formData, client_contact: value, company_name: client?.company || ''});
-                  }}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Choose a client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockClients.map((client) => (
-                        <SelectItem key={client.contact} value={client.contact}>
-                          {client.name} ({client.company})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="start_date">Start Date *</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="end_date">End Date (Optional)</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="shift_type">Shift Type</Label>
-                  <Select value={formData.shift_type} onValueChange={(value) => setFormData({...formData, shift_type: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="day">Day Shift</SelectItem>
-                      <SelectItem value="night">Night Shift</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="duty_status">Duty Status</Label>
-                  <Select value={formData.duty_status} onValueChange={(value) => setFormData({...formData, duty_status: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ON_DUTY">On Duty</SelectItem>
-                      <SelectItem value="OFF_DUTY">Off Duty</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="bg-gradient-primary">
-                  {editingAssignment ? 'Update Assignment' : 'Create Assignment'}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-8 w-8 text-success" />
-              <div>
-                <p className="text-sm text-muted-foreground">On Duty</p>
-                <p className="text-2xl font-bold text-success">{onDutyCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-8 w-8 text-warning" />
-              <div>
-                <p className="text-sm text-muted-foreground">Off Duty</p>
-                <p className="text-2xl font-bold text-warning">{offDutyCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <XCircle className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold">{completedCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Total Assignments</p>
-                <p className="text-2xl font-bold text-primary">{assignments.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Assignments Table */}
-      <Card className="shadow-soft">
-        <CardHeader>
-          <CardTitle>Duty Assignments</CardTitle>
-          <CardDescription>Manage all guard duty assignments and schedules</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <TabsList>
-                <TabsTrigger value="all" onClick={() => setStatusFilter('all')}>All</TabsTrigger>
-                <TabsTrigger value="active" onClick={() => setStatusFilter('ON_DUTY')}>Active</TabsTrigger>
-                <TabsTrigger value="completed" onClick={() => setStatusFilter('COMPLETED')}>Completed</TabsTrigger>
-              </TabsList>
-              
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search assignments..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <TabsContent value="all" className="space-y-4">
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Guard</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Shift</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAssignments.map((assignment) => {
-                      const StatusIcon = statusIcons[assignment.duty_status];
-                      return (
-                        <TableRow key={assignment.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">{assignment.guard_name}</p>
-                                <p className="text-sm text-muted-foreground">{assignment.guard_contact}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{assignment.client_name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-muted-foreground">{assignment.company_name}</span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {assignment.shift_type === 'day' ? (
-                                <Sun className="h-4 w-4 text-warning" />
-                              ) : (
-                                <Moon className="h-4 w-4 text-primary" />
-                              )}
-                              <span className="capitalize">{assignment.shift_type}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {new Date(assignment.start_date).toLocaleDateString()}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-muted-foreground">
-                              {assignment.end_date 
-                                ? `${assignment.duration_days} days`
-                                : 'Ongoing'
-                              }
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={statusColors[assignment.duty_status]}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {assignment.duty_status.replace('_', ' ')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleEdit(assignment)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

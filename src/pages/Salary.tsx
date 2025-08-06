@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+// app/(wherever)/Salary.tsx
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
   TableBody, 
@@ -10,7 +13,7 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -18,17 +21,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Plus,
   Search,
@@ -40,184 +43,351 @@ import {
   XCircle,
   TrendingUp,
   Minus,
-  FileText
-} from 'lucide-react';
+  FileText,
+  Trash2,
+  RefreshCw
+} from "lucide-react";
 
-// Mock data
-const mockSalaryRecords = [
-  {
-    id: 1,
-    guard_name: 'John Doe',
-    guard_contact: '+1234567890',
-    month: 3,
-    year: 2024,
-    base_salary: 25000,
-    deductions: 1000,
-    bonus: 2000,
-    final_salary: 26000,
-    is_paid: true,
-    payment_date: '2024-03-31',
-    notes: 'Performance bonus included',
-    created_at: '2024-03-01T08:00:00Z'
-  },
-  {
-    id: 2,
-    guard_name: 'Sarah Smith',
-    guard_contact: '+1234567891',
-    month: 3,
-    year: 2024,
-    base_salary: 28000,
-    deductions: 500,
-    bonus: 1500,
-    final_salary: 29000,
-    is_paid: false,
-    payment_date: null,
-    notes: 'Overtime bonus',
-    created_at: '2024-03-01T08:00:00Z'
-  },
-  {
-    id: 3,
-    guard_name: 'Mike Johnson',
-    guard_contact: '+1234567892',
-    month: 2,
-    year: 2024,
-    base_salary: 30000,
-    deductions: 800,
-    bonus: 0,
-    final_salary: 29200,
-    is_paid: true,
-    payment_date: '2024-02-29',
-    notes: 'Regular salary',
-    created_at: '2024-02-01T08:00:00Z'
+// -----------------------------
+// Types matching your FastAPI
+// -----------------------------
+type Guard = {
+  id: number;
+  name: string;
+  contact_number: string;
+  current_salary: number;
+  uniform_cost?: number | null;
+  uniform_deducted_amount?: number | null;
+  monthly_deduction?: number | null;
+};
+
+type SalaryRecord = {
+  id: number;
+  guard_contact_number: string;
+  month: number;
+  year: number;
+  deductions: number | null;
+  bonus: number | null;
+  is_paid: boolean;
+  payment_date: string | null;
+  notes: string | null;
+  uniform_deduction: number | null;
+  final_salary: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type SalaryStats = { paid_count: number; unpaid_count: number; total_paid: number; total_pending: number; };
+
+type SalaryCreate = {
+  guard_contact_number: string;
+  month: number;
+  year: number;
+  deductions?: number | null;
+  bonus?: number | null;
+  notes?: string | null;
+  is_paid: boolean;
+  payment_date?: string | null;
+};
+
+type SalaryUpdate = Partial<SalaryCreate>;
+
+// -----------------------------
+// API client helpers
+// Adjust API_BASE if your backend is mounted elsewhere
+// -----------------------------
+const API_BASE = "http://localhost:8000";
+
+async function api<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let detail = `Request failed: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = body.detail;
+    } catch {}
+    throw new Error(detail);
   }
-];
+  return res.json();
+}
 
-const mockGuards = [
-  { name: 'John Doe', contact: '+1234567890', salary: 25000 },
-  { name: 'Sarah Smith', contact: '+1234567891', salary: 28000 },
-  { name: 'Mike Johnson', contact: '+1234567892', salary: 30000 },
-  { name: 'Emily Davis', contact: '+1234567893', salary: 26000 }
-];
+async function fetchGuards(): Promise<Guard[]> {
+  return api<Guard[]>("/guard");
+}
 
+type GetSalaryParams = {
+  guard_contact_number?: string;
+  month?: number;
+  year?: number;
+  is_paid?: boolean;
+  skip?: number;
+  limit?: number;
+};
+async function fetchSalaries(params: GetSalaryParams = {}): Promise<SalaryRecord[]> {
+  const q = new URLSearchParams();
+  if (params.guard_contact_number) q.set("guard_contact_number", params.guard_contact_number);
+  if (params.month) q.set("month", String(params.month));
+  if (params.year) q.set("year", String(params.year));
+  if (typeof params.is_paid === "boolean") q.set("is_paid", String(params.is_paid));
+  if (typeof params.skip === "number") q.set("skip", String(params.skip));
+  if (typeof params.limit === "number") q.set("limit", String(params.limit));
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return api<SalaryRecord[]>(`/salaryrecord/${suffix}`);
+}
+
+async function createSalary(payload: SalaryCreate): Promise<SalaryRecord> {
+  return api<SalaryRecord>("/salaryrecord/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// WARNING: Your API updates by contact number, which is ambiguous if multiple records exist.
+// Prefer adding PUT /salaryrecord/by-id/{id} on the backend and calling that instead.
+async function updateSalaryByContact(contact_number: string, payload: SalaryUpdate): Promise<SalaryRecord> {
+  return api<SalaryRecord>(`/salaryrecord/${encodeURIComponent(contact_number)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+async function deleteSalaryById(id: number): Promise<void> {
+  await api(`/salaryrecord/${id}`, { method: "DELETE" });
+}
+
+async function fetchStats(): Promise<SalaryStats> {
+  return api<SalaryStats>("/salaryrecord/stat");
+}
+
+// -----------------------------
+// UI Helpers
+// -----------------------------
 const months = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
 ];
 
+function formatRs(n: number) {
+  return `Rs${(n || 0).toLocaleString()}`;
+}
+
+// -----------------------------
+// Component
+// -----------------------------
 export default function Salary() {
-  const [salaryRecords, setSalaryRecords] = useState(mockSalaryRecords);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  // data
+  const [guards, setGuards] = useState<Guard[]>([]);
+  const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
+  const [stats, setStats] = useState<SalaryStats | null>(null);
+
+  // ui state
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // filters & search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all"|"paid"|"unpaid">("all");
+
+  // dialog & form
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [editingRecord, setEditingRecord] = useState<ReturnType<typeof toUIRow> | null>(null);
 
   const [formData, setFormData] = useState({
-    guard_contact: '',
+    guard_contact_number: "",
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    deductions: '',
-    bonus: '',
-    notes: '',
+    deductions: "",
+    bonus: "",
+    notes: "",
     is_paid: false,
-    payment_date: ''
+    payment_date: ""
   });
 
-  const filteredRecords = salaryRecords.filter(record => {
-    const matchesSearch = record.guard_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.guard_contact.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'paid' && record.is_paid) ||
-                         (statusFilter === 'unpaid' && !record.is_paid);
-    return matchesSearch && matchesStatus;
-  });
-
-  const calculateFinalSalary = (baseSalary, deductions = 0, bonus = 0) => {
-    return baseSalary - deductions + bonus;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const selectedGuard = mockGuards.find(g => g.contact === formData.guard_contact);
-    const finalSalary = calculateFinalSalary(
-      selectedGuard?.salary || 0,
-      parseFloat(formData.deductions) || 0,
-      parseFloat(formData.bonus) || 0
-    );
-
-    if (editingRecord) {
-      setSalaryRecords(salaryRecords.map(record => 
-        record.id === editingRecord.id 
-          ? { 
-              ...record, 
-              ...formData,
-              deductions: parseFloat(formData.deductions) || 0,
-              bonus: parseFloat(formData.bonus) || 0,
-              final_salary: finalSalary,
-              guard_name: selectedGuard?.name
-            }
-          : record
-      ));
-    } else {
-      setSalaryRecords([...salaryRecords, {
-        ...formData,
-        id: Date.now(),
-        guard_name: selectedGuard?.name,
-        base_salary: selectedGuard?.salary || 0,
-        deductions: parseFloat(formData.deductions) || 0,
-        bonus: parseFloat(formData.bonus) || 0,
-        final_salary: finalSalary,
-        created_at: new Date().toISOString()
-      }]);
+  // -----------------------------
+  // Load initial data
+  // -----------------------------
+  async function loadAll() {
+    setError(null);
+    setLoading(true);
+    try {
+      const [g, s, st] = await Promise.all([fetchGuards(), fetchSalaries(), fetchStats()]);
+      setGuards(g);
+      setSalaryRecords(s);
+      setStats(st);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load data");
+    } finally {
+      setLoading(false);
     }
-    resetForm();
-  };
+  }
 
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  async function refreshData() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const [s, st] = await Promise.all([fetchSalaries(), fetchStats()]);
+      setSalaryRecords(s);
+      setStats(st);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  // -----------------------------
+  // Helpers to join guard data for table display
+  // -----------------------------
+  function guardByContact(contact: string) {
+    return guards.find(g => g.contact_number === contact);
+  }
+
+  function toUIRow(r: SalaryRecord) {
+    const g = guardByContact(r.guard_contact_number);
+    return {
+      id: r.id,
+      guard_name: g?.name ?? r.guard_contact_number,
+      guard_contact: r.guard_contact_number,
+      month: r.month,
+      year: r.year,
+      base_salary: g?.current_salary ?? 0,
+      deductions: r.deductions ?? 0,
+      bonus: r.bonus ?? 0,
+      final_salary: r.final_salary ?? 0,
+      is_paid: r.is_paid,
+      payment_date: r.payment_date,
+      notes: r.notes ?? "",
+      created_at: r.created_at ?? ""
+    };
+  }
+
+  const uiRecords = useMemo(() => salaryRecords.map(toUIRow), [salaryRecords, guards]);
+
+  const filteredRecords = useMemo(() => {
+    return uiRecords.filter(record => {
+      const matchesSearch =
+        record.guard_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.guard_contact.includes(searchTerm);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "paid" && record.is_paid) ||
+        (statusFilter === "unpaid" && !record.is_paid);
+      return matchesSearch && matchesStatus;
+    });
+  }, [uiRecords, searchTerm, statusFilter]);
+
+  // -----------------------------
+  // Form & actions
+  // -----------------------------
   const resetForm = () => {
     setFormData({
-      guard_contact: '',
+      guard_contact_number: "",
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      deductions: '',
-      bonus: '',
-      notes: '',
+      deductions: "",
+      bonus: "",
+      notes: "",
       is_paid: false,
-      payment_date: ''
+      payment_date: ""
     });
     setEditingRecord(null);
     setIsDialogOpen(false);
   };
 
-  const handleEdit = (record) => {
+  const handleEdit = (record: ReturnType<typeof toUIRow>) => {
     setEditingRecord(record);
     setFormData({
-      guard_contact: record.guard_contact,
+      guard_contact_number: record.guard_contact,
       month: record.month,
       year: record.year,
-      deductions: record.deductions.toString(),
-      bonus: record.bonus.toString(),
-      notes: record.notes,
+      deductions: record.deductions?.toString() ?? "",
+      bonus: record.bonus?.toString() ?? "",
+      notes: record.notes ?? "",
       is_paid: record.is_paid,
-      payment_date: record.payment_date || ''
+      payment_date: record.payment_date ?? ""
     });
     setIsDialogOpen(true);
   };
 
-  const togglePaymentStatus = (recordId) => {
-    setSalaryRecords(salaryRecords.map(record => 
-      record.id === recordId 
-        ? { 
-            ...record, 
-            is_paid: !record.is_paid,
-            payment_date: !record.is_paid ? new Date().toISOString().split('T')[0] : null
-          }
-        : record
-    ));
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const payload: SalaryCreate = {
+        guard_contact_number: formData.guard_contact_number,
+        month: Number(formData.month),
+        year: Number(formData.year),
+        deductions: formData.deductions === "" ? null : Number(formData.deductions),
+        bonus: formData.bonus === "" ? null : Number(formData.bonus),
+        notes: formData.notes || null,
+        is_paid: !!formData.is_paid,
+        payment_date: formData.is_paid
+          ? (formData.payment_date || new Date().toISOString().slice(0, 10))
+          : null
+      };
+
+      if (editingRecord) {
+        // Uses your current endpoint: PUT /salaryrecord/{contact_number}
+        // WARNING: This may update the first record for that contact_number (not specifically this month/year).
+        await updateSalaryByContact(editingRecord.guard_contact, payload);
+      } else {
+        await createSalary(payload);
+      }
+
+      await refreshData();
+      resetForm();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to save record");
+    }
   };
 
-  const paidCount = salaryRecords.filter(r => r.is_paid).length;
-  const unpaidCount = salaryRecords.filter(r => !r.is_paid).length;
-  const totalPaid = salaryRecords.filter(r => r.is_paid).reduce((sum, r) => sum + r.final_salary, 0);
-  const totalPending = salaryRecords.filter(r => !r.is_paid).reduce((sum, r) => sum + r.final_salary, 0);
+  const togglePaymentStatus = async (recordId: number) => {
+    const rec = salaryRecords.find(r => r.id === recordId);
+    if (!rec) return;
+
+    try {
+      const payload: SalaryUpdate = {
+        is_paid: !rec.is_paid,
+        payment_date: !rec.is_paid ? new Date().toISOString().slice(0,10) : null
+      };
+      await updateSalaryByContact(rec.guard_contact_number, payload);
+      await refreshData();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to toggle payment status");
+    }
+  };
+
+  const handleDelete = async (recordId: number) => {
+    try {
+      await deleteSalaryById(recordId);
+      await refreshData();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to delete record");
+    }
+  };
+
+  // Client-only preview of final salary (backend is source of truth due to uniform_deduction)
+  const previewFinalSalary = useMemo(() => {
+    const base = guardByContact(formData.guard_contact_number)?.current_salary ?? 0;
+    const ded = parseFloat(formData.deductions) || 0;
+    const bon = parseFloat(formData.bonus) || 0;
+    // NOTE: backend may also subtract uniform_deduction; this is just an estimate.
+    return base - ded + bon;
+  }, [formData, guards]);
+
+  const paidCount = stats?.paid_count ?? 0;
+  const unpaidCount = stats?.unpaid_count ?? 0;
+  const totalPaid = stats?.total_paid ?? 0;
+  const totalPending = stats?.total_pending ?? 0;
 
   return (
     <div className="space-y-6">
@@ -227,168 +397,199 @@ export default function Salary() {
           <h1 className="text-2xl font-bold text-foreground">Salary Management</h1>
           <p className="text-muted-foreground">Manage guard salaries, deductions, and bonus payments</p>
         </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary shadow-medium">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Salary Record
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingRecord ? 'Edit Salary Record' : 'Create Salary Record'}</DialogTitle>
-              <DialogDescription>
-                {editingRecord ? 'Update salary information and payment details' : 'Create a new salary record for a guard'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <Label htmlFor="guard">Select Guard *</Label>
-                  <Select value={formData.guard_contact} onValueChange={(value) => setFormData({...formData, guard_contact: value})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Choose a guard" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockGuards.map((guard) => (
-                        <SelectItem key={guard.contact} value={guard.contact}>
-                          {guard.name} ({guard.contact}) - Rs{guard.salary.toLocaleString()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label>Base Salary</Label>
-                  <div className="mt-1 p-2 bg-muted rounded-md">
-                    <span className="text-sm text-muted-foreground">
-                      Rs{(mockGuards.find(g => g.contact === formData.guard_contact)?.salary || 0).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="month">Month *</Label>
-                  <Select value={formData.month.toString()} onValueChange={(value) => setFormData({...formData, month: parseInt(value)})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map((month, index) => (
-                        <SelectItem key={index + 1} value={(index + 1).toString()}>
-                          {month}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="year">Year *</Label>
-                  <Select value={formData.year.toString()} onValueChange={(value) => setFormData({...formData, year: parseInt(value)})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[2024, 2023, 2022].map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={refreshData} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary shadow-medium">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Salary Record
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingRecord ? "Edit Salary Record" : "Create Salary Record"}</DialogTitle>
+                <DialogDescription>
+                  {editingRecord ? "Update salary information and payment details" : "Create a new salary record for a guard"}
+                </DialogDescription>
+              </DialogHeader>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="deductions">Deductions (Rs)</Label>
-                  <Input
-                    id="deductions"
-                    type="number"
-                    value={formData.deductions}
-                    onChange={(e) => setFormData({...formData, deductions: e.target.value})}
-                    className="mt-1"
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="bonus">Bonus (Rs)</Label>
-                  <Input
-                    id="bonus"
-                    type="number"
-                    value={formData.bonus}
-                    onChange={(e) => setFormData({...formData, bonus: e.target.value})}
-                    className="mt-1"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Final Salary</Label>
-                <div className="mt-1 p-3 bg-primary/10 rounded-md border border-primary/20">
-                  <span className="text-lg font-semibold text-primary">
-                    Rs{calculateFinalSalary(
-                      mockGuards.find(g => g.contact === formData.guard_contact)?.salary || 0,
-                      parseFloat(formData.deductions) || 0,
-                      parseFloat(formData.bonus) || 0
-                    ).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="mt-1"
-                  placeholder="Any additional notes..."
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is_paid"
-                  checked={formData.is_paid}
-                  onCheckedChange={(checked) => setFormData({...formData, is_paid: !!checked})}
-                />
-                <Label htmlFor="is_paid">Mark as paid</Label>
-              </div>
-
-              {formData.is_paid && (
-                <div>
-                  <Label htmlFor="payment_date">Payment Date</Label>
-                  <Input
-                    id="payment_date"
-                    type="date"
-                    value={formData.payment_date}
-                    onChange={(e) => setFormData({...formData, payment_date: e.target.value})}
-                    className="mt-1"
-                  />
+              {error && (
+                <div className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-md p-2 mb-2">
+                  {error}
                 </div>
               )}
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="bg-gradient-primary">
-                  {editingRecord ? 'Update Record' : 'Create Record'}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="guard">Select Guard *</Label>
+                    <Select
+                      value={formData.guard_contact_number}
+                      onValueChange={(value) => setFormData({ ...formData, guard_contact_number: value })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={guards.length ? "Choose a guard" : "Loading guards..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {guards.map((g) => (
+                          <SelectItem key={g.contact_number} value={g.contact_number}>
+                            {g.name} ({g.contact_number}) - {formatRs(g.current_salary || 0)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Base Salary</Label>
+                    <div className="mt-1 p-2 bg-muted rounded-md">
+                      <span className="text-sm text-muted-foreground">
+                        {formatRs(guardByContact(formData.guard_contact_number)?.current_salary ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="month">Month *</Label>
+                    <Select
+                      value={formData.month.toString()}
+                      onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((m, idx) => (
+                          <SelectItem key={idx + 1} value={(idx + 1).toString()}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="year">Year *</Label>
+                    <Select
+                      value={formData.year.toString()}
+                      onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* adjust available years as needed */}
+                        {[new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2].map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="deductions">Deductions (Rs)</Label>
+                    <Input
+                      id="deductions"
+                      type="number"
+                      value={formData.deductions}
+                      onChange={(e) => setFormData({ ...formData, deductions: e.target.value })}
+                      className="mt-1"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bonus">Bonus (Rs)</Label>
+                    <Input
+                      id="bonus"
+                      type="number"
+                      value={formData.bonus}
+                      onChange={(e) => setFormData({ ...formData, bonus: e.target.value })}
+                      className="mt-1"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Final Salary (estimate)</Label>
+                  <div className="mt-1 p-3 bg-primary/10 rounded-md border border-primary/20">
+                    <span className="text-lg font-semibold text-primary">
+                      {formatRs(previewFinalSalary)}
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The backend may apply uniform deduction; actual saved amount can differ.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="mt-1"
+                    placeholder="Any additional notes..."
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_paid"
+                    checked={formData.is_paid}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_paid: !!checked })}
+                  />
+                  <Label htmlFor="is_paid">Mark as paid</Label>
+                </div>
+
+                {formData.is_paid && (
+                  <div>
+                    <Label htmlFor="payment_date">Payment Date</Label>
+                    <Input
+                      id="payment_date"
+                      type="date"
+                      value={formData.payment_date}
+                      onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <Button type="submit" className="bg-gradient-primary">
+                    {editingRecord ? "Update Record" : "Create Record"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      {/* Loading & error */}
+      {loading && (
+        <div className="text-sm text-muted-foreground">Loading data…</div>
+      )}
+      {!loading && error && (
+        <div className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-md p-2">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -422,7 +623,7 @@ export default function Salary() {
               <DollarSign className="h-8 w-8 text-success" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid</p>
-                <p className="text-2xl font-bold text-success">Rs{totalPaid.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-success">{formatRs(totalPaid)}</p>
               </div>
             </div>
           </CardContent>
@@ -434,7 +635,7 @@ export default function Salary() {
               <TrendingUp className="h-8 w-8 text-warning" />
               <div>
                 <p className="text-sm text-muted-foreground">Pending Amount</p>
-                <p className="text-2xl font-bold text-warning">Rs{totalPending.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-warning">{formatRs(totalPending)}</p>
               </div>
             </div>
           </CardContent>
@@ -458,8 +659,8 @@ export default function Salary() {
                 className="pl-10"
               />
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+
+            <Select value={statusFilter} onValueChange={(v: "all"|"paid"|"unpaid") => setStatusFilter(v)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -503,12 +704,12 @@ export default function Salary() {
                         {months[record.month - 1]} {record.year}
                       </div>
                     </TableCell>
-                    <TableCell>Rs{record.base_salary.toLocaleString()}</TableCell>
+                    <TableCell>{formatRs(record.base_salary)}</TableCell>
                     <TableCell>
                       {record.deductions > 0 && (
                         <div className="flex items-center gap-1 text-destructive">
                           <Minus className="h-3 w-3" />
-                          Rs{record.deductions.toLocaleString()}
+                          {formatRs(record.deductions)}
                         </div>
                       )}
                     </TableCell>
@@ -516,45 +717,42 @@ export default function Salary() {
                       {record.bonus > 0 && (
                         <div className="flex items-center gap-1 text-success">
                           <Plus className="h-3 w-3" />
-                          Rs{record.bonus.toLocaleString()}
+                          {formatRs(record.bonus)}
                         </div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="font-semibold text-primary">Rs{record.final_salary.toLocaleString()}</span>
+                      <span className="font-semibold text-primary">{formatRs(record.final_salary)}</span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge className={record.is_paid ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
-                          {record.is_paid ? (
-                            <>
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Paid
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Pending
-                            </>
-                          )}
-                        </Badge>
-                      </div>
+                      <Badge className={record.is_paid ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"}>
+                        {record.is_paid ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Paid
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Pending
+                          </>
+                        )}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleEdit(record)}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(record)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant={record.is_paid ? "secondary" : "default"}
                           onClick={() => togglePaymentStatus(record.id)}
                         >
-                          {record.is_paid ? 'Mark Unpaid' : 'Mark Paid'}
+                          {record.is_paid ? "Mark Unpaid" : "Mark Paid"}
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(record.id)}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
