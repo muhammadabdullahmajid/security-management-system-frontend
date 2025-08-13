@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import logo from '@/assets/Logo.png'
+import logo from '@/assets/Logo.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
@@ -26,7 +25,7 @@ export default function Login() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email,        // If backend expects 'username', change this key
+          email,
           password,
         }),
       });
@@ -46,7 +45,7 @@ export default function Login() {
         description: 'Welcome to Pak Public Security Management',
       });
 
-      navigate('/dashboard'); // or '/mainlayout'
+      navigate('/dashboard/guards');
     } catch (error: any) {
       toast({
         title: 'Login failed',
@@ -63,8 +62,8 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-        <img src={logo} alt="Logo" className="h-10 w-auto" />
-        <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
+          <img src={logo} alt="Logo" className="h-10 w-auto" />
+          <h1 className="text-xl font-bold text-gray-800">Pak Public Security</h1>
         </div>
 
         <Card className="border-border">
@@ -75,6 +74,19 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Back to Home Button */}
+            <div className="mb-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                type="button"
+                onClick={() => navigate('/')}
+              >
+                Back to Home
+              </Button>
+            </div>
+
+            {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -103,13 +115,8 @@ export default function Login() {
               </Button>
             </form>
 
+            {/* Only Back to Home link */}
             <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link to="/signup" className="text-primary hover:underline">
-                  Sign up
-                </Link>
-              </p>
               <Link to="/" className="text-sm text-muted-foreground hover:underline">
                 Back to home
               </Link>
@@ -120,3 +127,4 @@ export default function Login() {
     </div>
   );
 }
+  

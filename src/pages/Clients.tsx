@@ -37,11 +37,11 @@ const CACHE_TIME = 5 * 60 * 1000; // 5 minutes
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('clientSearchTerm') || '');
+  const [searchTerm, setSearchTerm] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('clientSearchTerm') || '' : '');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false); // For background update indicator
+  const [updating, setUpdating] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -52,12 +52,10 @@ export default function Clients() {
     contract_rate: ''
   });
 
-  // Save search term in localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('clientSearchTerm', searchTerm);
   }, [searchTerm]);
 
-  // Fetch clients from API
   const fetchClients = async (showLoader = true) => {
     try {
       if (showLoader) {
@@ -69,7 +67,6 @@ export default function Clients() {
       const data = await res.json();
       setClients(data);
 
-      // Cache new data
       localStorage.setItem(
         CACHE_KEY,
         JSON.stringify({
@@ -86,45 +83,51 @@ export default function Clients() {
     }
   };
 
-  // Load from cache first, then update if stale
   useEffect(() => {
-    const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+    let cached = null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) cached = JSON.parse(raw);
+    } catch (err) {
+      console.warn("Invalid cache, clearing.");
+      localStorage.removeItem(CACHE_KEY);
+    }
+
     const now = Date.now();
 
     if (cached && cached.search === searchTerm) {
       setClients(cached.data);
 
       if (now - cached.timestamp < CACHE_TIME) {
-        return; // Cache is fresh, no fetch
+        return;
       } else {
-        fetchClients(false); // Background update without blocking UI
+        fetchClients(false);
         return;
       }
     }
 
-    fetchClients(); // No cache, fetch normally
+    fetchClients();
   }, [searchTerm]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        contract_rate: parseFloat(formData.contract_rate) || 0
+      };
+
       if (editingClient) {
         await fetch(`${API_BASE_URL}/${editingClient.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...formData,
-            contract_rate: parseFloat(formData.contract_rate) || 0
-          }),
+          body: JSON.stringify(payload),
         });
       } else {
         await fetch(API_BASE_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...formData,
-            contract_rate: parseFloat(formData.contract_rate) || 0
-          }),
+          body: JSON.stringify(payload),
         });
       }
       resetForm();
@@ -155,7 +158,7 @@ export default function Clients() {
       contact_number: client.contact_number,
       address: client.address,
       company_name: client.company_name,
-      contract_rate: client.contract_rate.toString()
+      contract_rate: (client.contract_rate || 0).toString()
     });
     setIsDialogOpen(true);
   };
@@ -175,13 +178,12 @@ export default function Clients() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Client Management</h1>
           <p className="text-muted-foreground">Manage client information and contract details</p>
         </div>
-        
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary shadow-medium">
@@ -196,15 +198,14 @@ export default function Clients() {
                 {editingClient ? 'Update client information and contract details' : 'Enter the details for the new client'}
               </DialogDescription>
             </DialogHeader>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Client Name *</Label>
                   <Input
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
@@ -212,24 +213,24 @@ export default function Clients() {
                   <Label>Company Name</Label>
                   <Input
                     value={formData.company_name}
-                    onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Contact Person</Label>
+                  <Label>Contact Person Name</Label>
                   <Input
                     value={formData.contact_person}
-                    onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
                   />
                 </div>
                 <div>
                   <Label>Contact Number</Label>
                   <Input
                     value={formData.contact_number}
-                    onChange={(e) => setFormData({...formData, contact_number: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
                   />
                 </div>
               </div>
@@ -238,7 +239,7 @@ export default function Clients() {
                 <Label>Address</Label>
                 <Textarea
                   value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
 
@@ -247,7 +248,7 @@ export default function Clients() {
                 <Input
                   type="number"
                   value={formData.contract_rate}
-                  onChange={(e) => setFormData({...formData, contract_rate: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, contract_rate: e.target.value })}
                 />
               </div>
 
@@ -264,7 +265,6 @@ export default function Clients() {
         </Dialog>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card><CardContent className="p-4 flex items-center gap-3">
           <Building2 className="h-8 w-8 text-primary" />
@@ -301,13 +301,11 @@ export default function Clients() {
         </CardContent></Card>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle>Clients List</CardTitle>
           <CardDescription>
-            View and manage all client information{" "}
-            {updating && <span className="text-xs text-muted-foreground">(Updating...)</span>}
+            View and manage all client information {updating && <span className="text-xs text-muted-foreground">(Updating...)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -332,7 +330,7 @@ export default function Clients() {
                   <TableRow>
                     <TableHead>Client Name</TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Contact Person</TableHead>
+                    <TableHead>Contact Person Name</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Contract Rate</TableHead>
                     <TableHead>Guards</TableHead>
@@ -340,7 +338,7 @@ export default function Clients() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {clients.map(client => (
+                  {Array.isArray(clients) && clients.map(client => (
                     <TableRow key={client.id}>
                       <TableCell>{client.name}</TableCell>
                       <TableCell>{client.company_name || 'Not specified'}</TableCell>

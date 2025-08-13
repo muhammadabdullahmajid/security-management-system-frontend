@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import logo from '@/assets/Logo.png';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Shield, Users, Building2, ClipboardList } from 'lucide-react';
 
 export default function Home() {
@@ -20,9 +20,6 @@ export default function Home() {
             <Link to="/login">
               <Button variant="outline">Login</Button>
             </Link>
-            <Link to="/signup">
-              <Button>Sign Up</Button>
-            </Link>
           </div>
         </div>
       </header>
@@ -39,13 +36,8 @@ export default function Home() {
             Handle guards, clients, duties, and inventory all in one place.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/signup">
-              <Button size="lg" className="w-full sm:w-auto">
-                Get Started
-              </Button>
-            </Link>
             <Link to="/login">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto">
                 Sign In
               </Button>
             </Link>

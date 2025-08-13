@@ -18,12 +18,12 @@ import {
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  // { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Guards', href: '/dashboard/guards', icon: Users },
   { name: 'Clients', href: '/dashboard/clients', icon: Building2 },
   { name: 'Duty Assignment', href: '/dashboard/duty-assignment', icon: ClipboardList },
   { name: 'Salary Management', href: '/dashboard/salary', icon: DollarSign },
-  { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+  // { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
   { name: 'Client-Guard Assignment', href: '/dashboard/client-guard', icon: UserCheck },
 ];
 
